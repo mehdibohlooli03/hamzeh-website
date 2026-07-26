@@ -1,34 +1,121 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
 
-async function checkAdmin() {
-  const session = await getServerSession(authOptions);
-  return session?.user?.role === "ADMIN";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+
+const productSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  slug: z
+    .string()
+    .trim()
+    .min(1, "Slug is required")
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug must contain only lowercase letters, numbers, and hyphens",
+    ),
+  description: z.string().trim().optional().nullable(),
+  price: z.coerce.number().positive("Price must be greater than 0"),
+  category: z.enum(["TSHIRT", "PANTS", "SHIRT", "JACKET"]),
+});
+
+async function ensureAdmin() {
+  const session = await auth();
+
+  if (session?.user?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  return null;
 }
 
 export async function GET() {
-  if (!await checkAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const products = await prisma.product.findMany({
-    include: { images: true, colors: { include: { variants: true } } },
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json(products);
+  try {
+    const unauthorized = await ensureAdmin();
+    if (unauthorized) return unauthorized;
+
+    const products = await prisma.product.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        category: true,
+        isActive: true,
+      },
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+    });
+
+    return NextResponse.json(products);
+  } catch (error) {
+    console.error("GET /api/admin/products failed:", error);
+
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(req: Request) {
-  if (!await checkAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const data = await req.json();
-  const product = await prisma.product.create({
-    data: {
-      name: data.name,
-      slug: data.slug,
-      description: data.description || null,
-      price: Number(data.price),
-      category: data.category,
-      isActive: data.isActive ?? true,
-    },
-  });
-  return NextResponse.json(product, { status: 201 });
+  try {
+    const unauthorized = await ensureAdmin();
+    if (unauthorized) return unauthorized;
+
+    const json = await req.json();
+    const parsed = productSchema.safeParse(json);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid request body",
+          issues: parsed.error.flatten(),
+        },
+        { status: 400 },
+      );
+    }
+
+    const data = parsed.data;
+
+    const product = await prisma.product.create({
+      data: {
+        name: data.name,
+        slug: data.slug,
+        description: data.description || null,
+        price: data.price,
+        category: data.category,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        category: true,
+        isActive: true,
+      },
+    });
+
+    return NextResponse.json(product, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/admin/products failed:", error);
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "Slug already exists" },
+        { status: 409 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
 }
