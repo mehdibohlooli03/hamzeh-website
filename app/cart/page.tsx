@@ -26,6 +26,12 @@ type ValidationItem = {
   message: string | null;
 };
 
+const isUnavailableStatus = (status?: ValidationStatus) => {
+  return (
+    status === "inactive" || status === "not_found" || status === "out_of_stock"
+  );
+};
+
 export default function CartPage() {
   const router = useRouter();
 
@@ -35,7 +41,6 @@ export default function CartPage() {
   const clearCart = useCart((state) => state.clearCart);
   const setItems = useCart((state) => state.setItems);
   const totalItems = useCart((state) => state.totalItems());
-  const totalPrice = useCart((state) => state.totalPrice());
 
   const [isValidating, setIsValidating] = useState(false);
   const [validationMap, setValidationMap] = useState<
@@ -48,9 +53,9 @@ export default function CartPage() {
       return;
     }
 
-    setIsValidating(true);
-
     try {
+      setIsValidating(true);
+
       const response = await fetch("/api/cart/validate", {
         method: "POST",
         headers: {
@@ -139,28 +144,77 @@ export default function CartPage() {
     void validateCart();
   }, [validateCart]);
 
-  const invalidVariantIds = useMemo(() => {
-    return items
-      .filter((item) => {
-        const validation = validationMap[item.variantId];
+  const enrichedItems = useMemo(() => {
+    return items.map((item) => {
+      const validation = validationMap[item.variantId];
+      const isInvalid = isUnavailableStatus(validation?.status);
+      const hasStockWarning = validation?.status === "insufficient_stock";
 
-        if (!validation) return false;
+      const effectivePrice =
+        typeof validation?.currentPrice === "number"
+          ? validation.currentPrice
+          : item.price;
 
-        return (
-          validation.status === "inactive" ||
-          validation.status === "not_found" ||
-          validation.status === "out_of_stock"
-        );
-      })
-      .map((item) => item.variantId);
+      const effectiveStock =
+        typeof validation?.availableStock === "number"
+          ? validation.availableStock
+          : item.stock;
+
+      return {
+        ...item,
+        validation,
+        isInvalid,
+        hasStockWarning,
+        effectivePrice,
+        effectiveStock,
+        lineTotal: effectivePrice * item.quantity,
+      };
+    });
   }, [items, validationMap]);
 
-  const hasInvalidItems = invalidVariantIds.length > 0;
+  const invalidItems = useMemo(() => {
+    return enrichedItems.filter((item) => item.isInvalid);
+  }, [enrichedItems]);
+
+  const payableItems = useMemo(() => {
+    return enrichedItems.filter((item) => !item.isInvalid);
+  }, [enrichedItems]);
+
+  const payableTotalPrice = useMemo(() => {
+    return payableItems.reduce((sum, item) => sum + item.lineTotal, 0);
+  }, [payableItems]);
+
+  const payableTotalItems = useMemo(() => {
+    return payableItems.reduce((sum, item) => sum + item.quantity, 0);
+  }, [payableItems]);
+
+  const hasInvalidItems = invalidItems.length > 0;
+  const hasStockWarnings = enrichedItems.some(
+    (item) => item.validation?.status === "insufficient_stock",
+  );
   const isEmpty = items.length === 0;
 
   const handleCheckoutRedirect = () => {
     if (hasInvalidItems || isValidating) return;
     router.push("/checkout");
+  };
+
+  const handleRemoveInvalidItems = () => {
+    invalidItems.forEach((item) => removeItem(item.variantId));
+  };
+
+  const handleIncrease = (
+    variantId: string,
+    quantity: number,
+    stock: number,
+  ) => {
+    if (quantity >= stock) return;
+    updateQuantity(variantId, quantity + 1);
+  };
+
+  const handleDecrease = (variantId: string, quantity: number) => {
+    if (quantity <= 1) return;
+    updateQuantity(variantId, quantity - 1);
   };
 
   if (isEmpty) {
@@ -192,25 +246,39 @@ export default function CartPage() {
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          onClick={clearCart}
-          className="h-11 rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-        >
-          خالی کردن سبد
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          {hasInvalidItems && (
+            <Button
+              variant="outline"
+              onClick={handleRemoveInvalidItems}
+              className="h-11 rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              حذف آیتم‌های نامعتبر
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            onClick={clearCart}
+            className="h-11 rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            خالی کردن سبد
+          </Button>
+        </div>
       </div>
+
+      {hasStockWarnings && !isValidating && (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          تعداد بعضی از آیتم‌ها بر اساس موجودی فعلی فروشگاه اصلاح شده است.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          {items.map((item) => {
-            const validation = validationMap[item.variantId];
-            const isInvalid =
-              validation?.status === "inactive" ||
-              validation?.status === "not_found" ||
-              validation?.status === "out_of_stock";
-
-            const hasStockWarning = validation?.status === "insufficient_stock";
+          {enrichedItems.map((item) => {
+            const validation = item.validation;
+            const isInvalid = item.isInvalid;
+            const hasStockWarning = item.hasStockWarning;
 
             return (
               <div
@@ -269,7 +337,7 @@ export default function CartPage() {
 
                         <p className="mt-2 text-sm text-gray-500">
                           موجودی قابل سفارش:{" "}
-                          {item.stock.toLocaleString("fa-IR")}
+                          {item.effectiveStock.toLocaleString("fa-IR")}
                         </p>
 
                         {validation?.message && (
@@ -289,7 +357,7 @@ export default function CartPage() {
 
                       <div className="text-left">
                         <p className="text-lg font-bold text-black">
-                          {item.price.toLocaleString("fa-IR")}
+                          {item.effectivePrice.toLocaleString("fa-IR")}
                           <span className="mr-1 text-sm font-normal text-gray-500">
                             تومان
                           </span>
@@ -299,39 +367,60 @@ export default function CartPage() {
                   </div>
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex w-fit items-center overflow-hidden rounded-xl border">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateQuantity(item.variantId, item.quantity + 1)
-                        }
-                        disabled={item.quantity >= item.stock || isInvalid}
-                        className="flex h-10 w-10 items-center justify-center text-lg transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        +
-                      </button>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex w-fit items-center overflow-hidden rounded-xl border bg-white">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleIncrease(
+                              item.variantId,
+                              item.quantity,
+                              item.effectiveStock,
+                            )
+                          }
+                          disabled={
+                            isInvalid ||
+                            isValidating ||
+                            item.quantity >= item.effectiveStock
+                          }
+                          className="flex h-10 w-10 items-center justify-center text-lg transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          +
+                        </button>
 
-                      <span className="flex h-10 min-w-[48px] items-center justify-center border-x px-3 text-sm font-bold">
-                        {item.quantity.toLocaleString("fa-IR")}
-                      </span>
+                        <span className="flex h-10 min-w-[48px] items-center justify-center border-x px-3 text-sm font-bold">
+                          {item.quantity.toLocaleString("fa-IR")}
+                        </span>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateQuantity(item.variantId, item.quantity - 1)
-                        }
-                        disabled={isInvalid}
-                        className="flex h-10 w-10 items-center justify-center text-lg transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        -
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDecrease(item.variantId, item.quantity)
+                          }
+                          disabled={isValidating || item.quantity <= 1}
+                          className="flex h-10 w-10 items-center justify-center text-lg transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          -
+                        </button>
+                      </div>
+
+                      {/* پیام در حال بررسی اختصاصی برای هر محصول */}
+                      {isValidating && (
+                        <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 animate-pulse border border-blue-100">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                          </span>
+                          در حال بررسی موجودی...
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3">
                       <p className="text-sm text-gray-500">
                         جمع:
                         <span className="mr-1 font-bold text-black">
-                          {(item.price * item.quantity).toLocaleString("fa-IR")}
+                          {item.lineTotal.toLocaleString("fa-IR")}
                         </span>
                         تومان
                       </p>
@@ -339,7 +428,7 @@ export default function CartPage() {
                       <Button
                         variant="outline"
                         onClick={() => removeItem(item.variantId)}
-                        className="rounded-xl"
+                        className="rounded-xl h-9 px-4 text-xs"
                       >
                         حذف
                       </Button>
@@ -357,31 +446,38 @@ export default function CartPage() {
 
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">تعداد اقلام</span>
+                <span className="text-gray-500">تعداد کل اقلام</span>
                 <span className="font-medium">
                   {totalItems.toLocaleString("fa-IR")}
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">مجموع خرید</span>
+                <span className="text-gray-500">اقلام قابل پرداخت</span>
                 <span className="font-medium">
-                  {totalPrice.toLocaleString("fa-IR")} تومان
+                  {payableTotalItems.toLocaleString("fa-IR")}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">مجموع قابل پرداخت</span>
+                <span className="font-medium">
+                  {payableTotalPrice.toLocaleString("fa-IR")} تومان
                 </span>
               </div>
 
               <div className="h-px bg-gray-200" />
 
               <div className="flex items-center justify-between text-base font-bold">
-                <span>مبلغ قابل پرداخت</span>
-                <span>{totalPrice.toLocaleString("fa-IR")} تومان</span>
+                <span>مبلغ نهایی</span>
+                <span>{payableTotalPrice.toLocaleString("fa-IR")} تومان</span>
               </div>
             </div>
 
             {hasInvalidItems && (
               <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 بعضی از آیتم‌های سبد خرید دیگر قابل سفارش نیستند. لطفاً آن‌ها را
-                حذف کنید.
+                حذف کنید تا ادامه فرایند خرید فعال شود.
               </div>
             )}
 
@@ -390,7 +486,7 @@ export default function CartPage() {
               disabled={hasInvalidItems || isValidating}
               className="mt-6 h-12 w-full rounded-xl text-base font-bold"
             >
-              {isValidating ? "در حال بررسی سبد خرید..." : "ادامه فرایند خرید"}
+              {isValidating ? "در حال بررسی..." : "ادامه فرایند خرید"}
             </Button>
 
             <Link href="/" className="mt-3 block">
