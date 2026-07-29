@@ -18,10 +18,13 @@ export type CartItem = {
 
 type CartState = {
   items: CartItem[];
+  lastClearedOrderId: string | null;
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeItem: (variantId: string) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   clearCart: () => void;
+  clearCartForOrder: (orderId: string) => void;
+  hasClearedCartForOrder: (orderId: string) => boolean;
   setItems: (items: CartItem[]) => void;
   totalItems: () => number;
   totalPrice: () => number;
@@ -30,10 +33,31 @@ type CartState = {
 const clampQuantity = (quantity: number, stock: number) =>
   Math.max(1, Math.min(quantity, stock));
 
+const normalizeCartItem = (item: Partial<CartItem>): CartItem => {
+  const quantity = Math.max(1, Number(item.quantity ?? 1));
+  const stock = Math.max(1, Number(item.stock ?? quantity));
+
+  return {
+    id: item.id ?? item.variantId ?? "",
+    productId: item.productId ?? "",
+    variantId: item.variantId ?? "",
+    name: item.name ?? "",
+    slug: item.slug ?? "",
+    price: Number(item.price ?? 0),
+    quantity: clampQuantity(quantity, stock),
+    stock,
+    size: item.size ?? "",
+    colorName: item.colorName ?? "",
+    colorValue: item.colorValue,
+    image: item.image,
+  };
+};
+
 export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      lastClearedOrderId: null,
 
       addItem: (item, quantity = 1) =>
         set((state) => {
@@ -60,10 +84,10 @@ export const useCart = create<CartState>()(
           return {
             items: [
               ...state.items,
-              {
+              normalizeCartItem({
                 ...item,
-                quantity: clampQuantity(quantity, item.stock),
-              },
+                quantity,
+              }),
             ],
           };
         }),
@@ -87,7 +111,35 @@ export const useCart = create<CartState>()(
 
       clearCart: () => set({ items: [] }),
 
-      setItems: (items) => set({ items }),
+      clearCartForOrder: (orderId) => {
+        const normalizedOrderId = orderId.trim();
+
+        if (!normalizedOrderId) return;
+
+        set((state) => {
+          if (state.lastClearedOrderId === normalizedOrderId) {
+            return state;
+          }
+
+          return {
+            items: [],
+            lastClearedOrderId: normalizedOrderId,
+          };
+        });
+      },
+
+      hasClearedCartForOrder: (orderId) => {
+        const normalizedOrderId = orderId.trim();
+
+        if (!normalizedOrderId) return false;
+
+        return get().lastClearedOrderId === normalizedOrderId;
+      },
+
+      setItems: (items) =>
+        set({
+          items: items.map((item) => normalizeCartItem(item)),
+        }),
 
       totalItems: () =>
         get().items.reduce((sum, item) => sum + item.quantity, 0),
@@ -97,41 +149,40 @@ export const useCart = create<CartState>()(
     }),
     {
       name: "real-hamzeh-cart",
-      version: 2,
+      version: 3,
       migrate: (persistedState, version) => {
         if (!persistedState || typeof persistedState !== "object") {
-          return { items: [] };
+          return {
+            items: [],
+            lastClearedOrderId: null,
+          };
         }
 
         const state = persistedState as Partial<CartState> & {
           items?: Partial<CartItem>[];
+          lastClearedOrderId?: unknown;
         };
 
-        if (version < 2) {
+        const normalizedItems = (state.items ?? []).map((item) =>
+          normalizeCartItem(item),
+        );
+
+        if (version < 3) {
           return {
             ...state,
-            items: (state.items ?? []).map((item) => {
-              const quantity = Math.max(1, Number(item.quantity ?? 1));
-
-              return {
-                id: item.id ?? item.variantId ?? "",
-                productId: item.productId ?? "",
-                variantId: item.variantId ?? "",
-                name: item.name ?? "",
-                slug: item.slug ?? "",
-                price: Number(item.price ?? 0),
-                quantity,
-                stock: Math.max(1, Number(item.stock ?? quantity)),
-                size: item.size ?? "",
-                colorName: item.colorName ?? "",
-                colorValue: item.colorValue,
-                image: item.image,
-              };
-            }),
+            items: normalizedItems,
+            lastClearedOrderId: null,
           };
         }
 
-        return state as CartState;
+        return {
+          ...state,
+          items: normalizedItems,
+          lastClearedOrderId:
+            typeof state.lastClearedOrderId === "string"
+              ? state.lastClearedOrderId
+              : null,
+        } as CartState;
       },
     },
   ),

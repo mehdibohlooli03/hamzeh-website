@@ -3,10 +3,23 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+type SortParam = "cheapest" | "expensive" | "newest";
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+
     const category = searchParams.get("category");
+    const sort = (searchParams.get("sort") as SortParam | null) ?? "newest";
+
+    // ساخت شیء orderBy به صورت صریح برای سازگاری کامل با Prisma
+    let orderBy: Record<string, "asc" | "desc"> = { createdAt: "desc" };
+
+    if (sort === "cheapest") {
+      orderBy = { price: "asc" };
+    } else if (sort === "expensive") {
+      orderBy = { price: "desc" };
+    }
 
     const products = await prisma.product.findMany({
       where: {
@@ -46,9 +59,7 @@ export async function GET(request: Request) {
         },
       },
 
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy,
     });
 
     return NextResponse.json(products);

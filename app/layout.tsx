@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import { SiteHeader } from "@/components/custom/site-header";
+import { SiteFooter } from "@/components/custom/site-footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,8 +37,11 @@ export default function RootLayout({
           {/* هدر سایت که در تمام صفحات تکرار می‌شود */}
           <SiteHeader />
 
-          {/* بخش محتوای اصلی صفحات با انعطاف‌پذیری برای پر کردن ارتفاع صفحه */}
+          {/* بخش محتوای اصلی صفحات */}
           <main className="flex-1">{children}</main>
+
+          {/* فوتر جدید سایت */}
+          <SiteFooter />
         </AuthProvider>
       </body>
     </html>

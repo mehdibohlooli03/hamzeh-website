@@ -1,36 +1,73 @@
-// app/orders/page.tsx
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import Image from "next/image";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Package, Calendar, CreditCard, ChevronLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Package,
+  Calendar,
+  ChevronLeft,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Wallet,
+  ShoppingBag,
+} from "lucide-react";
 
-// تبدیل وضعیت‌های انگلیسی دیتابیس به برچسب‌های فارسی و رنگی
-const statusMap = {
-  PENDING_PAYMENT: { text: "در انتظار پرداخت", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" },
-  PAID: { text: "پرداخت شده", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" },
-  PROCESSING: { text: "در حال پردازش", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" },
-  SHIPPED: { text: "ارسال شده", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400" },
-  DELIVERED: { text: "تحویل داده شده", color: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400" },
-  CANCELLED: { text: "لغو شده", color: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400" },
-};
+function getStatusDetails(status: string) {
+  switch (status) {
+    case "PENDING":
+      return {
+        text: "در انتظار پرداخت",
+        color:
+          "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400",
+        icon: Clock,
+      };
+    case "PAID":
+      return {
+        text: "تسویه کامل",
+        color:
+          "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400",
+        icon: CheckCircle2,
+      };
+    case "DEPOSIT_PAID":
+      return {
+        text: "بیعانه پرداخت شده",
+        color:
+          "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400",
+        icon: Wallet,
+      };
+    case "CANCELLED":
+      return {
+        text: "لغو شده",
+        color:
+          "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400",
+        icon: XCircle,
+      };
+    default:
+      return {
+        text: "نامشخص",
+        color: "bg-gray-50 text-gray-700 border-gray-200",
+        icon: Clock,
+      };
+  }
+}
 
 const paymentTypeMap = {
-  ONLINE: "آنلاین",
-  COD: "پرداخت در محل (کارت به کارت/نقدی)",
+  FULL: "تسویه نقدی کامل",
+  DEPOSIT: "پرداخت بیعانه (۳۰٪)",
 };
 
 export default async function OrdersPage() {
   const session = await auth();
 
-  // اگر کاربر وارد نشده بود، هدایت به صفحه ورود
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login?callbackUrl=/orders");
   }
 
-  // دریافت سفارش‌های کاربر به همراه جزئیات واریانت‌ها و محصولات
   const orders = await prisma.order.findMany({
     where: {
       userId: session.user.id,
@@ -56,95 +93,143 @@ export default async function OrdersPage() {
   });
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl" dir="rtl">
-      <div className="flex items-center gap-2 mb-8">
-        <Package className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold tracking-tight">سفارش‌های من</h1>
+    <div className="container mx-auto max-w-4xl px-4 py-12" dir="rtl">
+      <div className="mb-10 flex items-center gap-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-black shadow-xl shadow-black/10 dark:bg-white">
+          <Package className="h-7 w-7 text-white dark:text-black" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
+            سفارش‌های من
+          </h1>
+          <p className="text-sm font-medium text-muted-foreground">
+            تاریخچه خریدها و وضعیت فاکتورهای شما
+          </p>
+        </div>
       </div>
 
       {orders.length === 0 ? (
-        <Card className="text-center py-12">
-          <CardContent className="flex flex-col items-center justify-center gap-4">
-            <Package className="h-12 w-12 text-muted-foreground" />
-            <p className="text-muted-foreground">هنوز هیچ سفارشی ثبت نکرده‌اید.</p>
-            <Link
-              href="/products"
-              className="mt-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4"
-            >
-              مشاهده محصولات و خرید
-            </Link>
+        <Card className="rounded-[2.5rem] border-2 border-dashed border-gray-100 py-24 shadow-none">
+          <CardContent className="flex flex-col items-center justify-center gap-6">
+            <div className="rounded-full bg-gray-50 p-8 text-gray-200">
+              <ShoppingBag className="h-16 w-16" />
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold text-gray-900">
+                هنوز سفارشی ثبت نکرده‌اید
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                محصولات مورد علاقه خود را پیدا کنید و اولین خریدتان را انجام دهید
+              </p>
+            </div>
+            <Button asChild className="h-12 rounded-xl px-10 text-base font-bold">
+              <Link href="/">شروع گشت و گذار</Link>
+            </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-6">
           {orders.map((order) => {
-            const statusInfo = statusMap[order.status as keyof typeof statusMap] || {
-              text: order.status,
-              color: "bg-gray-100 text-gray-800",
-            };
+            const statusInfo = getStatusDetails(order.status);
+            const StatusIcon = statusInfo.icon;
+
+            const totalAmount = order.totalAmount || 0;
+            const depositAmount = order.depositAmount || 0;
+            const paidAmount =
+              order.status === "PENDING"
+                ? 0
+                : order.paymentType === "DEPOSIT"
+                  ? depositAmount
+                  : totalAmount;
 
             return (
-              <Card key={order.id} className="overflow-hidden border-muted/60 shadow-sm">
-                <CardHeader className="bg-muted/30 border-b border-muted/50 py-4 px-6">
+              <Card
+                key={order.id}
+                className="overflow-hidden rounded-3xl border-gray-100 shadow-sm transition-all duration-300 hover:shadow-md"
+              >
+                <CardHeader className="border-b border-gray-50 bg-gray-50/40 px-6 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="h-4 w-4" />
-                        <span>
-                          {new Date(order.createdAt).toLocaleDateString("fa-IR", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
+                        <span className="font-medium">
+                          {new Date(order.createdAt).toLocaleDateString(
+                            "fa-IR",
+                            {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            },
+                          )}
                         </span>
                       </div>
-                      <div>
-                        <span>شناسه سفارش: </span>
-                        <code className="font-mono text-xs text-foreground bg-muted px-1.5 py-0.5 rounded">
-                          {order.id.slice(-8).toUpperCase()}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <CreditCard className="h-4 w-4" />
-                        <span>روش پرداخت: {paymentTypeMap[order.paymentType as keyof typeof paymentTypeMap] || order.paymentType}</span>
+
+                      <div className="text-sm font-medium text-gray-400">
+                        کد سفارش:{" "}
+                        <span className="font-mono font-bold text-gray-900">
+                          #{order.id.slice(-6).toUpperCase()}
+                        </span>
                       </div>
                     </div>
-                    <Badge className={`${statusInfo.color} border-none shadow-none font-medium text-xs`}>
+
+                    <Badge
+                      variant="outline"
+                      className={`gap-1.5 rounded-xl border-none px-4 py-1.5 text-sm font-bold ${statusInfo.color}`}
+                    >
+                      <StatusIcon className="h-4 w-4" />
                       {statusInfo.text}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6">
-                  {/* لیست محصولات سفارش */}
-                  <div className="divide-y divide-muted/50">
+
+                <CardContent className="p-0">
+                  <div className="divide-y divide-gray-50 px-6">
                     {order.items.map((item) => {
                       const variant = item.productVariant;
-                      const product = variant.color.product;
+                      const color = variant?.color;
+                      const product = color?.product;
 
                       return (
-                        <div key={item.id} className="py-4 flex items-center justify-between first:pt-0 last:pb-0">
-                          <div className="flex items-center gap-4">
-                            {/* تصویر محصول */}
-                            {variant.color.mainImage && (
-                              <img
-                                src={variant.color.mainImage}
-                                alt={product.name}
-                                className="h-16 w-12 object-cover rounded bg-muted border border-muted/40"
-                              />
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between gap-4 py-6"
+                        >
+                          <div className="flex items-center gap-5">
+                            {color?.mainImage && (
+                              <div className="relative h-24 w-20 flex-shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm">
+                                <Image
+                                  src={color.mainImage}
+                                  alt={product?.title || "Product"}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
                             )}
-                            <div className="space-y-1">
-                              <h4 className="font-medium text-sm text-foreground">{product.name}</h4>
-                              <p className="text-xs text-muted-foreground">
-                                رنگ: {variant.color.name} | سایز: {variant.size}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                تعداد: {item.quantity} عدد
-                              </p>
+
+                            <div className="space-y-1.5">
+                              <h4 className="text-[16px] font-black leading-tight text-gray-900">
+                                {product?.title || "محصول نامشخص"}
+                              </h4>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  رنگ: {color?.name || "نامشخص"}
+                                </span>
+                                <span className="text-gray-200">|</span>
+                                <span>سایز: {variant?.size || "-"}</span>
+                                <span className="text-gray-200">|</span>
+                                <span>تعداد: {item.quantity}</span>
+                              </div>
                             </div>
                           </div>
+
                           <div className="text-left">
-                            <span className="text-sm font-semibold text-foreground">
-                              {(item.price * item.quantity).toLocaleString("fa-IR")} تومان
+                            <span className="text-[15px] font-black text-gray-900">
+                              {(item.price * item.quantity).toLocaleString(
+                                "fa-IR",
+                              )}{" "}
+                              <span className="text-[11px] font-bold text-gray-400">
+                                تومان
+                              </span>
                             </span>
                           </div>
                         </div>
@@ -152,23 +237,64 @@ export default async function OrdersPage() {
                     })}
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-muted/50 flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                      {order.status === "PENDING_PAYMENT" && (
-                        <Link
-                          href={`/payment-mock?orderId=${order.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                        >
-                          پرداخت این سفارش
-                          <ChevronLeft className="h-3 w-3" />
-                        </Link>
-                      )}
+                  <div className="flex flex-col items-center justify-between gap-5 bg-gray-50/50 p-6 sm:flex-row">
+                    <div className="w-full space-y-1 sm:w-auto">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium text-gray-500">
+                          نحوه تسویه:
+                        </span>
+                        <span className="font-black text-gray-800">
+                          {paymentTypeMap[
+                            order.paymentType as keyof typeof paymentTypeMap
+                          ] || order.paymentType}
+                        </span>
+                      </div>
+
+                      {order.paymentType === "DEPOSIT" &&
+                        order.status === "DEPOSIT_PAID" && (
+                          <div className="flex items-center gap-2 rounded-lg bg-blue-50/50 px-2.5 py-1 text-[11px] font-bold text-blue-700 border border-blue-100/50">
+                            <span>مانده قابل تسویه:</span>
+                            <span>
+                              {(totalAmount - depositAmount).toLocaleString(
+                                "fa-IR",
+                              )}{" "}
+                              تومان
+                            </span>
+                          </div>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">مبلغ کل پرداختی:</span>
-                      <span className="text-base font-bold text-foreground">
-                        {order.totalAmount.toLocaleString("fa-IR")} تومان
-                      </span>
+
+                    <div className="flex w-full flex-wrap items-center justify-between gap-6 sm:w-auto">
+                      <div className="flex flex-col items-end">
+                        <span className="text-[11px] font-bold text-gray-400">
+                          {order.status === "PENDING"
+                            ? "مبلغ کل فاکتور:"
+                            : "مبلغ پرداخت شده:"}
+                        </span>
+                        <span
+                          className={`text-xl font-black ${order.status === "PENDING" ? "text-gray-900" : "text-emerald-700"}`}
+                        >
+                          {(order.status === "PENDING"
+                            ? totalAmount
+                            : paidAmount
+                          ).toLocaleString("fa-IR")}
+                          <span className="mr-1 text-xs">تومان</span>
+                        </span>
+                      </div>
+
+                      {order.status === "PENDING" && (
+                        <Button
+                          asChild
+                          className="h-11 rounded-xl bg-amber-500 font-bold text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600"
+                        >
+                          <Link
+                            href={`/checkout/payment-mock?orderId=${order.id}`}
+                          >
+                            پرداخت فاکتور
+                            <ChevronLeft className="mr-1 h-4 w-4" />
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>

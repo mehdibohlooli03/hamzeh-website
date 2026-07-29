@@ -11,7 +11,15 @@ export async function GET() {
     }
 
     const orders = await prisma.order.findMany({
-      include: {
+      select: {
+        id: true,
+        status: true,
+        totalAmount: true,
+        paymentType: true,
+        phone: true,
+        shippingAddress: true,
+        postalCode: true,
+        createdAt: true,
         user: {
           select: {
             name: true,
@@ -19,12 +27,22 @@ export async function GET() {
           },
         },
         items: {
-          include: {
+          select: {
+            id: true,
+            quantity: true,
+            price: true,
             productVariant: {
-              include: {
+              select: {
+                size: true,
                 color: {
-                  include: {
-                    product: true,
+                  select: {
+                    name: true,
+                    mainImage: true,
+                    product: {
+                      select: {
+                        name: true,
+                      },
+                    },
                   },
                 },
               },
@@ -32,16 +50,23 @@ export async function GET() {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
-    return NextResponse.json(orders ?? [], { status: 200 });
+    const formattedOrders = orders.map((order) => ({
+      ...order,
+      address: order.shippingAddress,
+    }));
+
+    return NextResponse.json(formattedOrders, { status: 200 });
   } catch (error) {
     console.error("Get admin orders error:", error);
 
     return NextResponse.json(
       { error: "Failed to fetch orders" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
