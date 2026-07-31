@@ -129,7 +129,7 @@ export async function POST(req: Request) {
           data: {
             userId: session.user.id,
             paymentType: isDeposit ? PaymentType.DEPOSIT : PaymentType.FULL,
-            status: OrderStatus.PENDING,
+            status: OrderStatus.PENDING_PAYMENT,
             totalAmount,
             depositAmount,
             depositDeadline,

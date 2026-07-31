@@ -19,7 +19,7 @@ import {
 
 function getStatusDetails(status: string) {
   switch (status) {
-    case "PENDING":
+    case "PENDING_PAYMENT":
       return {
         text: "در انتظار پرداخت",
         color:
@@ -135,12 +135,12 @@ export default async function OrdersPage() {
 
             const totalAmount = order.totalAmount || 0;
             const depositAmount = order.depositAmount || 0;
-            const paidAmount =
-              order.status === "PENDING"
-                ? 0
-                : order.paymentType === "DEPOSIT"
-                  ? depositAmount
-                  : totalAmount;
+            const isPendingPayment = order.status === "PENDING_PAYMENT";
+            const paidAmount = isPendingPayment
+              ? 0
+              : order.paymentType === "DEPOSIT"
+                ? depositAmount
+                : totalAmount;
 
             return (
               <Card
@@ -199,7 +199,7 @@ export default async function OrdersPage() {
                               <div className="relative h-24 w-20 flex-shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm">
                                 <Image
                                   src={color.mainImage}
-                                  alt={product?.title || "Product"}
+                                  alt={product?.name || "Product"}
                                   fill
                                   className="object-cover"
                                 />
@@ -208,7 +208,7 @@ export default async function OrdersPage() {
 
                             <div className="space-y-1.5">
                               <h4 className="text-[16px] font-black leading-tight text-gray-900">
-                                {product?.title || "محصول نامشخص"}
+                                {product?.name || "محصول نامشخص"}
                               </h4>
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-gray-500">
                                 <span className="flex items-center gap-1">
@@ -252,7 +252,7 @@ export default async function OrdersPage() {
 
                       {order.paymentType === "DEPOSIT" &&
                         order.status === "DEPOSIT_PAID" && (
-                          <div className="flex items-center gap-2 rounded-lg bg-blue-50/50 px-2.5 py-1 text-[11px] font-bold text-blue-700 border border-blue-100/50">
+                          <div className="flex items-center gap-2 rounded-lg border border-blue-100/50 bg-blue-50/50 px-2.5 py-1 text-[11px] font-bold text-blue-700">
                             <span>مانده قابل تسویه:</span>
                             <span>
                               {(totalAmount - depositAmount).toLocaleString(
@@ -267,22 +267,23 @@ export default async function OrdersPage() {
                     <div className="flex w-full flex-wrap items-center justify-between gap-6 sm:w-auto">
                       <div className="flex flex-col items-end">
                         <span className="text-[11px] font-bold text-gray-400">
-                          {order.status === "PENDING"
+                          {isPendingPayment
                             ? "مبلغ کل فاکتور:"
                             : "مبلغ پرداخت شده:"}
                         </span>
                         <span
-                          className={`text-xl font-black ${order.status === "PENDING" ? "text-gray-900" : "text-emerald-700"}`}
+                          className={`text-xl font-black ${
+                            isPendingPayment ? "text-gray-900" : "text-emerald-700"
+                          }`}
                         >
-                          {(order.status === "PENDING"
-                            ? totalAmount
-                            : paidAmount
-                          ).toLocaleString("fa-IR")}
+                          {(isPendingPayment ? totalAmount : paidAmount).toLocaleString(
+                            "fa-IR",
+                          )}
                           <span className="mr-1 text-xs">تومان</span>
                         </span>
                       </div>
 
-                      {order.status === "PENDING" && (
+                      {isPendingPayment && (
                         <Button
                           asChild
                           className="h-11 rounded-xl bg-amber-500 font-bold text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600"

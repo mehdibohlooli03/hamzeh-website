@@ -1,19 +1,36 @@
 import { NextResponse } from "next/server";
+import { Category } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-type SortParam = "cheapest" | "expensive" | "newest";
+type SortParam = "cheapest" | "expensive";
+
+const validCategories = new Set<Category>([
+  Category.TSHIRT,
+  Category.PANTS,
+  Category.SHIRT,
+  Category.JACKET,
+]);
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const category = searchParams.get("category");
-    const sort = (searchParams.get("sort") as SortParam | null) ?? "newest";
+    const rawCategory = searchParams.get("category");
+    const rawSort = searchParams.get("sort");
 
-    // ساخت شیء orderBy به صورت صریح برای سازگاری کامل با Prisma
-    let orderBy: Record<string, "asc" | "desc"> = { createdAt: "desc" };
+    const category =
+      rawCategory && validCategories.has(rawCategory as Category)
+        ? (rawCategory as Category)
+        : undefined;
+
+    const sort: SortParam | undefined =
+      rawSort === "cheapest" || rawSort === "expensive" ? rawSort : undefined;
+
+    let orderBy:
+      | { price: "asc" | "desc" }
+      | { createdAt: "asc" | "desc" } = { createdAt: "desc" };
 
     if (sort === "cheapest") {
       orderBy = { price: "asc" };
@@ -23,29 +40,22 @@ export async function GET(request: Request) {
 
     const products = await prisma.product.findMany({
       where: {
-        // ۱. فقط محصولات فعال
         isActive: true,
-
-        // اگر category ارسال شده باشد، بر اساس آن فیلتر می‌شود
         ...(category ? { category } : {}),
       },
-
       include: {
         images: {
           orderBy: {
             order: "asc",
           },
         },
-
         colors: {
           where: {
-            // ۲. فقط رنگ‌های فعال
             isActive: true,
           },
           include: {
             variants: {
               where: {
-                // ۳. فقط واریانت‌های فعال
                 isActive: true,
               },
               orderBy: {
@@ -58,7 +68,6 @@ export async function GET(request: Request) {
           },
         },
       },
-
       orderBy,
     });
 

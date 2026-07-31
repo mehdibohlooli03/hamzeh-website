@@ -87,29 +87,37 @@ export async function SiteHeader() {
           {/* منوی موبایل */}
           <div className="md:hidden">
             <DropdownMenu>
-              {/* حذف asChild و تبدیل مستقیم به المنت تریگر اصلی بدون تودرتو کردن دکمه‌ها */}
               <DropdownMenuTrigger
                 className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition hover:bg-gray-100 focus:outline-none"
                 aria-label="منو"
               >
                 <Menu className="h-5 w-5" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 mt-1" dir="rtl">
-                <DropdownMenuItem asChild>
-                  <Link href="/products" className="w-full text-right font-medium">
+
+              <DropdownMenuContent align="end" className="mt-1 w-48" dir="rtl">
+                <DropdownMenuItem className="p-0">
+                  <Link
+                    href="/products"
+                    className="block w-full px-2 py-1.5 text-right font-medium"
+                  >
                     فروشگاه (همه محصولات)
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/cart" className="w-full text-right font-medium">
+
+                <DropdownMenuItem className="p-0">
+                  <Link
+                    href="/cart"
+                    className="block w-full px-2 py-1.5 text-right font-medium"
+                  >
                     سبد خرید
                   </Link>
                 </DropdownMenuItem>
+
                 {user?.role === "ADMIN" && (
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem className="p-0">
                     <Link
                       href="/admin"
-                      className="w-full text-right font-semibold text-red-600"
+                      className="block w-full px-2 py-1.5 text-right font-semibold text-red-600"
                     >
                       پنل ادمین
                     </Link>

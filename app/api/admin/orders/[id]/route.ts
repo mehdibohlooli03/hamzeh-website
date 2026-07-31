@@ -1,10 +1,23 @@
+import type { OrderStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
+
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+const VALID_ORDER_STATUSES: OrderStatus[] = [
+  "PENDING_PAYMENT",
+  "DEPOSIT_PAID",
+  "PAID",
+  "SHIPPED",
+  "READY_FOR_PICKUP",
+  "DELIVERED",
+  "CANCELLED",
+  "EXPIRED",
+];
 
 export async function PUT(req: Request, context: RouteContext) {
   try {
@@ -24,11 +37,18 @@ export async function PUT(req: Request, context: RouteContext) {
     }
 
     const body = await req.json();
-    const status = String(body.status || "").trim();
+    const status = String(body.status || "").trim().toUpperCase() as OrderStatus;
 
     if (!status) {
       return NextResponse.json(
         { error: "Order status is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!VALID_ORDER_STATUSES.includes(status)) {
+      return NextResponse.json(
+        { error: "Invalid order status" },
         { status: 400 }
       );
     }

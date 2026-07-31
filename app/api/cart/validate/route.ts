@@ -58,6 +58,9 @@ export async function POST(req: Request) {
         };
       }
 
+      // قیمت از روی محصول اصلی خوانده می‌شود
+      const currentPrice = dbVariant.color.product.price;
+
       const isAvailable =
         dbVariant.isActive &&
         dbVariant.color.isActive &&
@@ -69,7 +72,7 @@ export async function POST(req: Request) {
           status: "inactive" as const,
           isAvailable: false,
           availableStock: dbVariant.stock,
-          currentPrice: dbVariant.price,
+          currentPrice: currentPrice,
           requestedQuantity: item.quantity,
           validQuantity: 0,
           message: "این محصول دیگر برای سفارش فعال نیست.",
@@ -84,7 +87,7 @@ export async function POST(req: Request) {
           status: "out_of_stock" as const,
           isAvailable: false,
           availableStock: 0,
-          currentPrice: dbVariant.price,
+          currentPrice: currentPrice,
           requestedQuantity: item.quantity,
           validQuantity: 0,
           message: "موجودی این آیتم به اتمام رسیده است.",
@@ -97,7 +100,7 @@ export async function POST(req: Request) {
           status: "insufficient_stock" as const,
           isAvailable: true,
           availableStock: dbVariant.stock,
-          currentPrice: dbVariant.price,
+          currentPrice: currentPrice,
           requestedQuantity: item.quantity,
           validQuantity,
           message: `موجودی این آیتم تغییر کرده و حداکثر ${dbVariant.stock} عدد قابل سفارش است.`,
@@ -109,7 +112,7 @@ export async function POST(req: Request) {
         status: "ok" as const,
         isAvailable: true,
         availableStock: dbVariant.stock,
-        currentPrice: dbVariant.price,
+        currentPrice: currentPrice,
         requestedQuantity: item.quantity,
         validQuantity,
         message: null,

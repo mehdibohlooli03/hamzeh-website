@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -82,7 +82,7 @@ function isSortValue(value: string | null): value is SortValue {
   return value === "newest" || value === "cheapest" || value === "expensive";
 }
 
-export default function ProductsPage() {
+function ProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -113,7 +113,6 @@ export default function ProductsPage() {
           params.set("category", selectedCategory.apiValue);
         }
 
-        // فقط اگر sort غیر از newest بود ارسال کنیم (تمیزتر)
         if (sort !== "newest") {
           params.set("sort", sort);
         }
@@ -133,8 +132,8 @@ export default function ProductsPage() {
             typeof data === "object" &&
             data !== null &&
             "error" in data &&
-            typeof (data as any).error === "string"
-              ? (data as any).error
+            typeof (data as { error?: unknown }).error === "string"
+              ? (data as { error: string }).error
               : "خطا در دریافت محصولات";
 
           throw new Error(message);
@@ -265,7 +264,6 @@ export default function ProductsPage() {
               {products.length.toLocaleString("fa-IR")} محصول
             </span>
 
-            {/* مرتب‌سازی */}
             <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5">
               <span className="text-xs font-semibold text-gray-500">
                 مرتب‌سازی:
@@ -295,7 +293,6 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        {/* نمایش خلاصه وضعیت مرتب‌سازی (کوچیک و شیک) */}
         <div className="mt-5 text-xs text-gray-400">
           نمایش بر اساس: <span className="font-semibold">{sortLabel}</span>
         </div>
@@ -449,5 +446,27 @@ export default function ProductsPage() {
         </section>
       )}
     </main>
+  );
+}
+
+function ProductsPageFallback() {
+  return (
+    <main
+      className="flex min-h-[70vh] items-center justify-center px-4"
+      dir="rtl"
+    >
+      <div className="flex flex-col items-center gap-4">
+        <div className="size-10 animate-spin rounded-full border-4 border-gray-200 border-t-black" />
+        <p className="text-sm text-gray-500">در حال آماده‌سازی صفحه محصولات...</p>
+      </div>
+    </main>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<ProductsPageFallback />}>
+      <ProductsPageContent />
+    </Suspense>
   );
 }

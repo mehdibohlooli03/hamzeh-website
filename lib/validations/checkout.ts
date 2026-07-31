@@ -44,68 +44,65 @@ export function normalizeCheckoutFormInput(input: {
 }
 
 const shippingAddressSchema = z
-  .preprocess(
-    (value) => sanitizeShippingAddress(String(value ?? "")),
-    z.string({
-      required_error: "آدرس پستی الزامی است.",
-      invalid_type_error: "آدرس پستی نامعتبر است.",
-    }),
-  )
-  .min(15, "آدرس باید حداقل ۱۵ کاراکتر باشد.")
-  .max(500, "آدرس نمی‌تواند بیشتر از ۵۰۰ کاراکتر باشد.")
-  .refine((value) => /[A-Za-zآ-ی]/.test(value), {
-    message: "آدرس باید شامل متن معتبر باشد.",
-  })
-  .refine((value) => !/^\d+$/.test(value), {
-    message: "آدرس نمی‌تواند فقط شامل عدد باشد.",
-  });
+  .string()
+  .trim()
+  .min(1, "آدرس پستی الزامی است.")
+  .transform((val) => sanitizeShippingAddress(val))
+  .pipe(
+    z
+      .string()
+      .min(15, "آدرس باید حداقل ۱۵ کاراکتر باشد.")
+      .max(500, "آدرس نمی‌تواند بیشتر از ۵۰۰ کاراکتر باشد.")
+      .refine((value) => /[A-Za-zآ-ی]/.test(value), {
+        message: "آدرس باید شامل متن معتبر باشد.",
+      })
+      .refine((value) => !/^\d+$/.test(value), {
+        message: "آدرس نمی‌تواند فقط شامل عدد باشد.",
+      })
+  );
 
 const postalCodeSchema = z
-  .preprocess(
-    (value) => sanitizePostalCode(String(value ?? "")),
-    z.string({
-      required_error: "کد پستی الزامی است.",
-      invalid_type_error: "کد پستی نامعتبر است.",
-    }),
-  )
-  .length(10, "کد پستی باید دقیقاً ۱۰ رقم باشد.")
-  .refine((value) => /^\d{10}$/.test(value), {
-    message: "کد پستی باید فقط شامل عدد باشد.",
-  });
+  .string()
+  .trim()
+  .min(1, "کد پستی الزامی است.")
+  .transform((val) => sanitizePostalCode(val))
+  .pipe(
+    z
+      .string()
+      .length(10, "کد پستی باید دقیقاً ۱۰ رقم باشد.")
+      .refine((value) => /^\d{10}$/.test(value), {
+        message: "کد پستی باید فقط شامل عدد باشد.",
+      })
+  );
 
 const phoneSchema = z
-  .preprocess(
-    (value) => sanitizePhone(String(value ?? "")),
-    z.string({
-      required_error: "شماره تماس الزامی است.",
-      invalid_type_error: "شماره تماس نامعتبر است.",
-    }),
-  )
-  .length(11, "شماره تماس باید ۱۱ رقم باشد.")
-  .refine((value) => /^\d{11}$/.test(value), {
-    message: "شماره تماس باید فقط شامل عدد باشد.",
-  })
-  .refine((value) => value.startsWith("09"), {
-    message: "شماره تماس باید با 09 شروع شود.",
-  });
+  .string()
+  .trim()
+  .min(1, "شماره تماس الزامی است.")
+  .transform((val) => sanitizePhone(val))
+  .pipe(
+    z
+      .string()
+      .length(11, "شماره تماس باید ۱۱ رقم باشد.")
+      .refine((value) => /^\d{11}$/.test(value), {
+        message: "شماره تماس باید فقط شامل عدد باشد.",
+      })
+      .refine((value) => value.startsWith("09"), {
+        message: "شماره تماس باید با 09 شروع شود.",
+      })
+  );
 
 const paymentTypeSchema = z.enum(PAYMENT_TYPES, {
-  errorMap: () => ({ message: "نوع پرداخت نامعتبر است." }),
+  message: "نوع پرداخت نامعتبر است.",
 });
 
 export const checkoutItemSchema = z.object({
   variantId: z
-    .string({
-      required_error: "شناسه محصول الزامی است.",
-      invalid_type_error: "شناسه محصول نامعتبر است.",
-    })
+    .string()
     .trim()
     .min(1, "شناسه محصول نامعتبر است."),
   quantity: z
-    .number({
-      required_error: "تعداد الزامی است.",
-      invalid_type_error: "تعداد نامعتبر است.",
-    })
+    .number()
     .int("تعداد باید عدد صحیح باشد.")
     .min(1, "تعداد هر آیتم باید حداقل ۱ باشد."),
 });
@@ -118,12 +115,7 @@ export const checkoutFormSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
-  items: z
-    .array(checkoutItemSchema, {
-      required_error: "آیتم‌های سفارش الزامی هستند.",
-      invalid_type_error: "ساختار آیتم‌های سفارش نامعتبر است.",
-    })
-    .min(1, "سبد خرید شما خالی است."),
+  items: z.array(checkoutItemSchema).min(1, "سبد خرید شما خالی است."),
   shippingAddress: shippingAddressSchema,
   postalCode: postalCodeSchema,
   phone: phoneSchema,

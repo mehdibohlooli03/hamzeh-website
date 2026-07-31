@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   checkoutFormSchema,
   normalizeCheckoutFormInput,
+  type CheckoutFormValues,
   type PaymentType,
 } from "@/lib/validations/checkout";
 
@@ -274,7 +275,9 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
-      const normalizedForm = normalizeCheckoutFormInput(validation.data);
+      const normalizedForm = normalizeCheckoutFormInput(
+        validation.data as CheckoutFormValues,
+      );
 
       const response = await fetch("/api/orders", {
         method: "POST",

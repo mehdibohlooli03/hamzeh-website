@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
 
@@ -12,10 +12,11 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await context.params;
   const { role } = await req.json();
 
   const user = await prisma.user.update({
-    where: { id: params.id },
+    where: { id },
     data: { role },
   });
 

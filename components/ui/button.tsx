@@ -55,14 +55,27 @@ function Button({
   children,
   ...props
 }: ButtonProps) {
-  const classes = cn(buttonVariants({ variant, size, className }));
+  const classes = cn(buttonVariants({ variant, size }), className);
 
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, {
-      ...props,
-      "data-slot": "button",
-      className: cn(classes, children.props.className),
-    });
+  if (asChild) {
+    const child = React.Children.only(children);
+
+    if (!React.isValidElement(child)) {
+      throw new Error("Button: `asChild` expects a single valid React element.");
+    }
+
+    const { type: _type, ...slotProps } = props;
+
+    const childProps = child.props as { className?: string };
+
+    return React.cloneElement(
+      child,
+      {
+        ...slotProps,
+        "data-slot": "button",
+        className: cn(classes, childProps.className),
+      } as React.Attributes & React.ClassAttributes<HTMLElement>
+    );
   }
 
   return (

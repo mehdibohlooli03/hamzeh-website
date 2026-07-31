@@ -18,11 +18,9 @@ const variantSchema = z.object({
     .refine((value) => Object.values(Size).includes(value as Size), {
       message: "Invalid size. Allowed values: S, M, L, XL, XXL",
     }),
+
   stock: z.coerce
-    .number({
-      invalid_type_error: "Stock must be a number",
-      required_error: "Stock is required",
-    })
+    .number()
     .int("Stock must be a non-negative integer")
     .min(0, "Stock must be a non-negative integer"),
 });
