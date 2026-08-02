@@ -28,9 +28,9 @@ export async function GET(request: Request) {
     const sort: SortParam | undefined =
       rawSort === "cheapest" || rawSort === "expensive" ? rawSort : undefined;
 
-    let orderBy:
-      | { price: "asc" | "desc" }
-      | { createdAt: "asc" | "desc" } = { createdAt: "desc" };
+    let orderBy: { price: "asc" | "desc" } | { createdAt: "asc" | "desc" } = {
+      createdAt: "desc",
+    };
 
     if (sort === "cheapest") {
       orderBy = { price: "asc" };

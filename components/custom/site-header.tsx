@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { CartBadge } from "@/components/custom/cart-badge";
-import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/custom/user-menu";
-import { Menu } from "lucide-react";
+import { House, Menu, Phone } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,13 +20,15 @@ export async function SiteHeader() {
       dir="rtl"
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-6">
-          {/* لوگوی سایت */}
+        {/* سمت راست: خانه و لینک‌های اصلی */}
+        <div className="flex items-center gap-5 sm:gap-7">
           <Link
             href="/"
-            className="text-lg font-black tracking-wider text-black sm:text-xl"
+            aria-label="صفحه اصلی"
+            title="صفحه اصلی"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-800 transition-all hover:bg-gray-100 hover:text-black"
           >
-            REAL HAMZEH
+            <House className="h-5 w-5" strokeWidth={2.2} />
           </Link>
 
           {/* ناوبری دسکتاپ */}
@@ -46,6 +47,14 @@ export async function SiteHeader() {
               سبد خرید
             </Link>
 
+            <Link
+              href="/contact"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-600 transition hover:text-black"
+            >
+              <Phone className="h-4 w-4" />
+              تماس با ما
+            </Link>
+
             {user?.role === "ADMIN" && (
               <Link
                 href="/admin"
@@ -57,59 +66,60 @@ export async function SiteHeader() {
           </nav>
         </div>
 
-        {/* بخش سمت چپ هدر (سبد خرید، پروفایل، منوی موبایل) */}
+        {/* سمت چپ: سبد خرید، پروفایل و منوی موبایل */}
         <div className="flex items-center gap-2 sm:gap-3">
           <CartBadge />
 
           <div className="h-6 w-px bg-gray-200" />
 
-          {user ? (
-            <UserMenu name={user.name} />
-          ) : (
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <Link href="/login">
-                <Button
-                  variant="ghost"
-                  className="h-9 px-3 text-xs font-bold text-gray-700 hover:text-black sm:h-10 sm:px-4 sm:text-sm"
-                >
-                  ورود
-                </Button>
-              </Link>
-
-              <Link href="/register">
-                <Button className="h-9 rounded-xl px-3.5 text-xs font-bold text-white sm:h-10 sm:px-5 sm:text-sm">
-                  ثبت‌نام
-                </Button>
-              </Link>
-            </div>
-          )}
+          {user && <UserMenu name={user.name} />}
 
           {/* منوی موبایل */}
           <div className="md:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger
                 className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition hover:bg-gray-100 focus:outline-none"
-                aria-label="منو"
+                aria-label="باز کردن منو"
               >
                 <Menu className="h-5 w-5" />
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end" className="mt-1 w-48" dir="rtl">
+              <DropdownMenuContent align="end" className="mt-1 w-52" dir="rtl">
+                <DropdownMenuItem className="p-0">
+                  <Link
+                    href="/"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-right font-medium"
+                  >
+                    <House className="h-4 w-4" />
+                    صفحه اصلی
+                  </Link>
+                </DropdownMenuItem>
+
                 <DropdownMenuItem className="p-0">
                   <Link
                     href="/products"
-                    className="block w-full px-2 py-1.5 text-right font-medium"
+                    className="block w-full px-3 py-2 text-right font-medium"
                   >
-                    فروشگاه (همه محصولات)
+                    فروشگاه
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem className="p-0">
                   <Link
                     href="/cart"
-                    className="block w-full px-2 py-1.5 text-right font-medium"
+                    className="block w-full px-3 py-2 text-right font-medium"
                   >
                     سبد خرید
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem className="p-0">
+                  <Link
+                    href="/contact"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-right font-medium"
+                  >
+                    <Phone className="h-4 w-4" />
+                    تماس با ما
                   </Link>
                 </DropdownMenuItem>
 
@@ -117,7 +127,7 @@ export async function SiteHeader() {
                   <DropdownMenuItem className="p-0">
                     <Link
                       href="/admin"
-                      className="block w-full px-2 py-1.5 text-right font-semibold text-red-600"
+                      className="block w-full px-3 py-2 text-right font-semibold text-red-600"
                     >
                       پنل ادمین
                     </Link>
