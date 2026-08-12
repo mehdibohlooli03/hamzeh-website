@@ -38,7 +38,10 @@ export default function RootLayout({
           <SiteHeader />
 
           {/* بخش محتوای اصلی صفحات */}
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+                      <div id="test100V" className="absolute left-1/2 top-1/2 h-px w-24 -translate-x-1/2 rotate-[-20deg] bg-gradient-to-r from-transparent via-emerald-500/25 to-transparent" />
+
+            {children}</main>
 
           {/* فوتر جدید سایت */}
           <SiteFooter />
