@@ -1,21 +1,11 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { headers } from "next/headers";
 
-import {
-  ShoppingBag,
-  Truck,
-  ShieldCheck,
-  RotateCcw,
-  Headphones,
-  ArrowLeft,
-  Sparkles,
-  Flame,
-} from "lucide-react";
+import { ShoppingBag, ArrowLeft, Flame } from "lucide-react";
 import CategoryTypes from "@/components/custom/category";
-import LandingPooster from "@/components/custom/LandingPooster"
+import LandingPooster from "@/components/custom/LandingPooster";
+
 interface ProductImage {
   id: string;
   url: string;
@@ -49,7 +39,6 @@ interface Product {
   colors: ProductColor[];
 }
 
-// نقشه‌نگاری مقادیر دیتابیس به Slugهای مورد انتظار در صفحه محصولات
 const categorySlugMap: Record<string, string> = {
   PANTS: "pants",
   TSHIRT: "tshirts",
@@ -57,7 +46,6 @@ const categorySlugMap: Record<string, string> = {
   JACKET: "hoodies",
 };
 
-// نقشه‌نگاری مقادیر دیتابیس به نام‌های فارسی جهت نمایش شیک هدرها
 const categoryLabelMap: Record<string, string> = {
   PANTS: "شلوار",
   TSHIRT: "تیشرت",
@@ -65,71 +53,53 @@ const categoryLabelMap: Record<string, string> = {
   JACKET: "هودی و دورس",
 };
 
-export default function HomePage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+async function getProducts(): Promise<{ products: Product[]; error: string }> {
+  try {
+    const headersList = await headers();
+    const host = headersList.get("host") ?? "localhost:3000";
+    const protocol = host.includes("localhost") ? "http" : "https";
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? `${protocol}://${host}`;
 
-  useEffect(() => {
-    const controller = new AbortController();
+    const response = await fetch(`${baseUrl}/api/products`, {
+      method: "GET",
+      cache: "no-store",
+    });
 
-    async function fetchProducts() {
-      try {
-        setLoading(true);
-        setError("");
+    const data: unknown = await response.json();
 
-        const response = await fetch("/api/products", {
-          method: "GET",
-          cache: "no-store",
-          signal: controller.signal,
-        });
+    if (!response.ok) {
+      const errorMessage =
+        typeof data === "object" &&
+        data !== null &&
+        "error" in data &&
+        typeof (data as { error?: unknown }).error === "string"
+          ? (data as { error: string }).error
+          : "خطا در دریافت محصولات";
 
-        const data: unknown = await response.json();
-
-        if (!response.ok) {
-          const errorMessage =
-            typeof data === "object" &&
-            data !== null &&
-            "error" in data &&
-            typeof data.error === "string"
-              ? data.error
-              : "خطا در دریافت محصولات";
-
-          throw new Error(errorMessage);
-        }
-
-        if (!Array.isArray(data)) {
-          throw new Error("ساختار پاسخ API محصولات معتبر نیست");
-        }
-
-        setProducts(data as Product[]);
-      } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
-
-        console.error("[HOME_PRODUCTS_FETCH_ERROR]:", error);
-
-        setError(
-          error instanceof Error
-            ? error.message
-            : "خطا در دریافت محصولات از سرور",
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
+      return { products: [], error: errorMessage };
     }
 
-    fetchProducts();
+    if (!Array.isArray(data)) {
+      return { products: [], error: "ساختار پاسخ API محصولات معتبر نیست" };
+    }
 
-    return () => {
-      controller.abort();
+    return { products: data as Product[], error: "" };
+  } catch (error) {
+    console.error("[HOME_PRODUCTS_FETCH_ERROR]:", error);
+
+    return {
+      products: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : "خطا در دریافت محصولات از سرور",
     };
-  }, []);
+  }
+}
 
-  // گروه‌بندی محصولات بر اساس دسته‌بندی دیتابیس
+export default async function HomePage() {
+  const { products, error } = await getProducts();
+
   const groupedProducts = products.reduce<Record<string, Product[]>>(
     (acc, product) => {
       const cat = product.category || "سایر";
@@ -144,26 +114,6 @@ export default function HomePage() {
     },
     {},
   );
-
-  if (loading) {
-    return (
-      <main
-        className="flex min-h-[80vh] items-center justify-center bg-gray-50/50 px-4"
-        dir="rtl"
-      >
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative flex h-16 w-16 items-center justify-center">
-            <div className="absolute h-full w-full animate-ping rounded-full bg-black/10 opacity-75" />
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-black" />
-          </div>
-
-          <p className="text-center text-sm font-medium text-gray-600">
-            در حال بارگذاری کلکسیون محصولات...
-          </p>
-        </div>
-      </main>
-    );
-  }
 
   if (error) {
     return (
@@ -182,13 +132,12 @@ export default function HomePage() {
 
           <p className="text-sm leading-7 text-gray-500">{error}</p>
 
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="mt-6 w-full rounded-2xl bg-black py-3 text-sm font-medium text-white transition-all hover:bg-gray-800"
+          <Link
+            href="/"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-black py-3 text-sm font-medium text-white transition-all hover:bg-gray-800"
           >
             تلاش دوباره
-          </button>
+          </Link>
         </div>
       </main>
     );
@@ -197,17 +146,14 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50/30 pb-14 sm:pb-20" dir="rtl">
       {/* 1. Hero Section */}
-
       <LandingPooster />
-      {/* 2. Features/Trust Grid */}
 
-
-      {/* 3. Category Grid */}
+      {/* 2. Category Grid */}
       <section className="pt-10 sm:pt-12">
         <CategoryTypes />
       </section>
 
-      {/* 4. Products Grouped by Categories (Horizontal Scroll) */}
+      {/* 3. Products Grouped by Categories (Horizontal Scroll) */}
       <section className="container mx-auto space-y-12 px-4 py-10 sm:space-y-16 sm:py-12">
         {Object.entries(groupedProducts).map(
           ([categoryName, categoryProducts]) => {
