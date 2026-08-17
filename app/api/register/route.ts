@@ -49,6 +49,8 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (error) {
+    console.error("[REGISTER_ERROR]", error);
+
     return NextResponse.json(
       { error: "خطای سرور، لطفاً دوباره تلاش کنید" },
       { status: 500 }
