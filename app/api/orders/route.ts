@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { PaymentType, OrderStatus } from "@prisma/client";
 import { createOrderSchema } from "@/lib/validations/checkout";
 
 export async function POST(req: Request) {
@@ -56,7 +55,8 @@ export async function POST(req: Request) {
     const variantIds = normalizedItems.map((item) => item.variantId);
 
     const newOrder = await prisma.$transaction(
-      async (tx) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async (tx: any) => {
         let totalAmount = 0;
         const itemsToCreate: {
           productVariantId: string;
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
         });
 
         for (const item of normalizedItems) {
-          const variant = dbVariants.find((v) => v.id === item.variantId);
+          const variant = dbVariants.find((v: { id: string }) => v.id === item.variantId);
 
           if (!variant) {
             throw new Error("محصولی با مشخصات درخواستی یافت نشد.");
@@ -128,8 +128,8 @@ export async function POST(req: Request) {
         const order = await tx.order.create({
           data: {
             userId: session.user.id,
-            paymentType: isDeposit ? PaymentType.DEPOSIT : PaymentType.FULL,
-            status: OrderStatus.PENDING_PAYMENT,
+            paymentType: isDeposit ? "DEPOSIT" : "FULL",
+            status: "PENDING_PAYMENT",
             totalAmount,
             depositAmount,
             depositDeadline,
@@ -170,7 +170,7 @@ export async function POST(req: Request) {
       },
       { status: 201 },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[ORDER_POST_ERROR]:", error);
 
     const message = error instanceof Error ? error.message : "خطا در ثبت سفارش";

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { auth } from "@/auth";
@@ -100,13 +99,10 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(product, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("POST /api/admin/products failed:", error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if ((error as { code?: string })?.code === "P2002") {
       return NextResponse.json(
         { error: "Slug already exists" },
         { status: 409 },

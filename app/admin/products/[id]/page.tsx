@@ -85,6 +85,24 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+async function uploadMainImage(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/admin/products/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await parseJsonResponse<{ url: string }>(response);
+
+  if (!data.url) {
+    throw new Error("پاسخ آپلود شامل آدرس تصویر نیست.");
+  }
+
+  return data.url;
+}
+
 export default function AdminProductDetailsPage({ params }: PageProps) {
   const { id: productId } = use(params);
 
@@ -105,6 +123,7 @@ export default function AdminProductDetailsPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [submittingColor, setSubmittingColor] = useState(false);
   const [updatingColor, setUpdatingColor] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [submittingVariantFor, setSubmittingVariantFor] = useState<
     string | null
   >(null);
@@ -174,6 +193,44 @@ export default function AdminProductDetailsPage({ params }: PageProps) {
   useEffect(() => {
     void loadProduct();
   }, [loadProduct]);
+
+  const handleColorFileChange = async (file: File | null) => {
+    if (!file) return;
+
+    setUploadingImage(true);
+    setError(null);
+
+    try {
+      const url = await uploadMainImage(file);
+      setColorForm((prev) => ({ ...prev, mainImage: url }));
+      toast.success("تصویر با موفقیت آپلود شد.");
+    } catch (error) {
+      const message = getErrorMessage(error, "خطا در آپلود تصویر");
+      setError(message);
+      toast.error(message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleEditColorFileChange = async (file: File | null) => {
+    if (!file) return;
+
+    setUploadingImage(true);
+    setError(null);
+
+    try {
+      const url = await uploadMainImage(file);
+      setEditColorForm((prev) => ({ ...prev, mainImage: url }));
+      toast.success("تصویر با موفقیت آپلود شد.");
+    } catch (error) {
+      const message = getErrorMessage(error, "خطا در آپلود تصویر");
+      setError(message);
+      toast.error(message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleRestoreProduct = async () => {
     setRestoringProduct(true);
@@ -505,6 +562,7 @@ export default function AdminProductDetailsPage({ params }: PageProps) {
       loading ||
       submittingColor ||
       updatingColor ||
+      uploadingImage ||
       deletingColorId !== null ||
       deletingVariantId !== null ||
       updatingVariantId !== null ||
@@ -516,6 +574,7 @@ export default function AdminProductDetailsPage({ params }: PageProps) {
       loading,
       submittingColor,
       updatingColor,
+      uploadingImage,
       deletingColorId,
       deletingVariantId,
       updatingVariantId,
@@ -613,14 +672,25 @@ export default function AdminProductDetailsPage({ params }: PageProps) {
             disabled={submittingColor || !product.isActive || isAnyBusy}
           />
 
-          <Input
-            placeholder="آدرس تصویر اصلی"
-            value={colorForm.mainImage}
-            onChange={(e) =>
-              setColorForm((prev) => ({ ...prev, mainImage: e.target.value }))
-            }
-            disabled={submittingColor || !product.isActive || isAnyBusy}
-          />
+          <div className="flex flex-col gap-2">
+            <Input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              onChange={(e) =>
+                void handleColorFileChange(e.target.files?.[0] ?? null)
+              }
+              disabled={
+                submittingColor || uploadingImage || !product.isActive || isAnyBusy
+              }
+            />
+            {uploadingImage ? (
+              <p className="text-xs text-muted-foreground">در حال آپلود تصویر...</p>
+            ) : colorForm.mainImage ? (
+              <p className="truncate text-xs text-muted-foreground">
+                تصویر: {colorForm.mainImage}
+              </p>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex gap-2">
@@ -712,17 +782,27 @@ export default function AdminProductDetailsPage({ params }: PageProps) {
                           disabled={updatingColor || isAnyBusy}
                         />
 
-                        <Input
-                          placeholder="آدرس تصویر اصلی"
-                          value={editColorForm.mainImage}
-                          onChange={(e) =>
-                            setEditColorForm((prev) => ({
-                              ...prev,
-                              mainImage: e.target.value,
-                            }))
-                          }
-                          disabled={updatingColor || isAnyBusy}
-                        />
+                        <div className="flex flex-col gap-2">
+                          <Input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/avif"
+                            onChange={(e) =>
+                              void handleEditColorFileChange(
+                                e.target.files?.[0] ?? null
+                              )
+                            }
+                            disabled={updatingColor || uploadingImage || isAnyBusy}
+                          />
+                          {uploadingImage ? (
+                            <p className="text-xs text-muted-foreground">
+                              در حال آپلود تصویر...
+                            </p>
+                          ) : editColorForm.mainImage ? (
+                            <p className="truncate text-xs text-muted-foreground">
+                              تصویر: {editColorForm.mainImage}
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
 
                       <div className="flex gap-2">

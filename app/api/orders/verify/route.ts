@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { OrderStatus, PaymentType } from "@prisma/client";
 
 type VerifyStatus = "SUCCESS" | "FAILED";
+
+// اگر در Prisma شما نام enumها متفاوت است، فقط همین unionها را مطابق schema اصلاح کنید.
+type OrderStatus = "PENDING_PAYMENT" | "PAID" | "DEPOSIT_PAID" | "CANCELLED";
+type PaymentType = "FULL" | "DEPOSIT";
 
 class ApiError extends Error {
   statusCode: number;
@@ -17,16 +20,12 @@ class ApiError extends Error {
 
 function isFinalOrderStatus(status: string) {
   return (
-    status === OrderStatus.PAID ||
-    status === OrderStatus.DEPOSIT_PAID ||
-    status === OrderStatus.CANCELLED
+    status === "PAID" || status === "DEPOSIT_PAID" || status === "CANCELLED"
   );
 }
 
-function getPaidStatus(paymentType: PaymentType) {
-  return paymentType === PaymentType.FULL
-    ? OrderStatus.PAID
-    : OrderStatus.DEPOSIT_PAID;
+function getPaidStatus(paymentType: PaymentType): OrderStatus {
+  return paymentType === "FULL" ? "PAID" : "DEPOSIT_PAID";
 }
 
 export async function POST(req: Request) {
@@ -98,7 +97,8 @@ export async function POST(req: Request) {
 
     if (status === "FAILED") {
       const cancelledOrder = await prisma.$transaction(
-        async (tx) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async (tx: any) => {
           const currentOrder = await tx.order.findFirst({
             where: {
               id: orderId,
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
               id: currentOrder.id,
             },
             data: {
-              status: OrderStatus.CANCELLED,
+              status: "CANCELLED",
             },
             select: {
               id: true,
@@ -149,7 +149,7 @@ export async function POST(req: Request) {
         {
           success: false,
           message:
-            cancelledOrder.status === OrderStatus.CANCELLED
+            cancelledOrder.status === "CANCELLED"
               ? "پرداخت ناموفق بود و سفارش لغو شد"
               : "این سفارش قبلاً تعیین تکلیف شده است",
           orderId: cancelledOrder.id,
@@ -164,7 +164,8 @@ export async function POST(req: Request) {
     }
 
     const updatedOrder = await prisma.$transaction(
-      async (tx) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async (tx: any) => {
         const currentOrder = await tx.order.findFirst({
           where: {
             id: orderId,
@@ -205,8 +206,8 @@ export async function POST(req: Request) {
         }
 
         const variantIds = currentOrder.items
-          .map((item) => item.productVariantId)
-          .filter((id): id is string => Boolean(id));
+          .map((item: { productVariantId: string | null }) => item.productVariantId)
+          .filter((id: string | null): id is string => Boolean(id));
 
         if (variantIds.length !== currentOrder.items.length) {
           throw new ApiError(
@@ -230,8 +231,13 @@ export async function POST(req: Request) {
           },
         });
 
-        for (const item of currentOrder.items) {
-          const variant = variants.find((v) => v.id === item.productVariantId);
+        for (const item of currentOrder.items as Array<{
+          quantity: number;
+          productVariantId: string | null;
+        }>) {
+          const variant = variants.find(
+            (v: { id: string }) => v.id === item.productVariantId,
+          );
 
           if (!variant) {
             throw new ApiError("یکی از تنوع‌های محصول سفارش یافت نشد.", 409);
@@ -256,7 +262,10 @@ export async function POST(req: Request) {
           }
         }
 
-        for (const item of currentOrder.items) {
+        for (const item of currentOrder.items as Array<{
+          quantity: number;
+          productVariantId: string | null;
+        }>) {
           await tx.productVariant.update({
             where: {
               id: item.productVariantId as string,
@@ -274,7 +283,7 @@ export async function POST(req: Request) {
             id: currentOrder.id,
           },
           data: {
-            status: getPaidStatus(currentOrder.paymentType),
+            status: getPaidStatus(currentOrder.paymentType as PaymentType),
           },
           select: {
             id: true,
@@ -307,7 +316,7 @@ export async function POST(req: Request) {
       },
       { status: 200 },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[VERIFY_ORDER_ERROR]", error);
 
     if (error instanceof ApiError) {

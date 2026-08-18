@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -55,7 +56,9 @@ export async function GET() {
       },
     });
 
-    const formattedOrders = orders.map((order) => ({
+    type OrderListItem = (typeof orders)[number];
+
+    const formattedOrders = orders.map((order: OrderListItem) => ({
       ...order,
       address: order.shippingAddress,
     }));

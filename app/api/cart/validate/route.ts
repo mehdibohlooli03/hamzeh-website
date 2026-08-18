@@ -7,6 +7,19 @@ type CartValidateRequestItem = {
   quantity: number;
 };
 
+type VariantWithRelations = {
+  id: string;
+  stock: number;
+  isActive: boolean;
+  color: {
+    isActive: boolean;
+    product: {
+      price: number;
+      isActive: boolean;
+    };
+  };
+};
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -27,7 +40,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ items: [] });
     }
 
-    const variants = await prisma.productVariant.findMany({
+    const variants = (await prisma.productVariant.findMany({
       where: {
         id: { in: variantIds },
       },
@@ -38,9 +51,12 @@ export async function POST(req: Request) {
           },
         },
       },
-    });
+    })) as unknown as VariantWithRelations[];
 
-    const variantMap = new Map(variants.map((variant) => [variant.id, variant]));
+    const variantMap = new Map<string, VariantWithRelations>();
+    variants.forEach((variant) => {
+      variantMap.set(variant.id, variant);
+    });
 
     const result = items.map((item) => {
       const dbVariant = variantMap.get(item.variantId);
@@ -120,7 +136,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ items: result });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("cart validate error:", error);
 
     return NextResponse.json(

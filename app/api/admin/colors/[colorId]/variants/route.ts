@@ -1,4 +1,3 @@
-import { Prisma, Size } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -9,13 +8,15 @@ type RouteContext = {
   params: Promise<{ colorId: string }>;
 };
 
+const ALLOWED_SIZES = ["S", "M", "L", "XL", "XXL"] as const;
+
 const variantSchema = z.object({
   size: z
     .string()
     .trim()
     .min(1, "Size is required")
     .transform((value) => value.toUpperCase())
-    .refine((value) => Object.values(Size).includes(value as Size), {
+    .refine((value) => (ALLOWED_SIZES as readonly string[]).includes(value), {
       message: "Invalid size. Allowed values: S, M, L, XL, XXL",
     }),
 
@@ -79,7 +80,7 @@ export async function POST(req: Request, context: RouteContext) {
     const existingVariant = await prisma.productVariant.findFirst({
       where: {
         colorId,
-        size: size as Size,
+        size: size as any,
       },
       select: { id: true },
     });
@@ -94,17 +95,14 @@ export async function POST(req: Request, context: RouteContext) {
     const variant = await prisma.productVariant.create({
       data: {
         colorId,
-        size: size as Size,
+        size: size as any,
         stock,
       },
     });
 
     return NextResponse.json(variant, { status: 201 });
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+  } catch (error: any) {
+    if (error?.code === "P2002") {
       return NextResponse.json(
         { error: "This size already exists for the selected color" },
         { status: 409 },

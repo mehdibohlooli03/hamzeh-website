@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { auth } from "@/auth";
@@ -118,20 +117,14 @@ export async function PUT(req: Request, context: RouteContext) {
     });
 
     return NextResponse.json(product);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`PUT /api/admin/products/${id} failed:`, error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (error?.code === "P2025") {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (error?.code === "P2002") {
       return NextResponse.json(
         { error: "Slug already exists" },
         { status: 409 },
@@ -173,9 +166,12 @@ export async function DELETE(_: Request, context: RouteContext) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    const colorIds = product.colors.map((color) => color.id);
-    const variantIds = product.colors.flatMap((color) =>
-      color.variants.map((variant) => variant.id),
+    const colorIds = (product.colors as Array<{ id: string; variants: Array<{ id: string }> }>).map(
+      (color) => color.id,
+    );
+
+    const variantIds = (product.colors as Array<{ id: string; variants: Array<{ id: string }> }>).flatMap(
+      (color) => color.variants.map((variant) => variant.id),
     );
 
     let hasOrderDependencies = false;
@@ -195,7 +191,7 @@ export async function DELETE(_: Request, context: RouteContext) {
     }
 
     if (hasOrderDependencies) {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: any) => {
         if (colorIds.length > 0) {
           await tx.productVariant.updateMany({
             where: {
@@ -232,7 +228,7 @@ export async function DELETE(_: Request, context: RouteContext) {
       });
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       if (colorIds.length > 0) {
         await tx.productVariant.deleteMany({
           where: {
@@ -265,20 +261,14 @@ export async function DELETE(_: Request, context: RouteContext) {
       message: "محصول و تمامی داده‌های وابسته با موفقیت حذف شدند.",
       softDeleted: false,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(`DELETE /api/admin/products/${id} failed:`, error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (error?.code === "P2025") {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2003"
-    ) {
+    if (error?.code === "P2003") {
       return NextResponse.json(
         {
           error:

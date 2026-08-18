@@ -17,6 +17,32 @@ import {
   ShoppingBag,
 } from "lucide-react";
 
+type OrderItemView = {
+  id: string;
+  quantity: number;
+  price: number;
+  productVariant: {
+    size: string;
+    color: {
+      name: string;
+      mainImage: string | null;
+      product: {
+        name: string;
+      } | null;
+    } | null;
+  } | null;
+};
+
+type OrderView = {
+  id: string;
+  status: string;
+  paymentType: string;
+  totalAmount: number | null;
+  depositAmount: number | null;
+  createdAt: Date;
+  items: OrderItemView[];
+};
+
 function getStatusDetails(status: string) {
   switch (status) {
     case "PENDING_PAYMENT":
@@ -98,6 +124,7 @@ export default async function OrdersPage() {
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-black shadow-xl shadow-black/10 dark:bg-white">
           <Package className="h-7 w-7 text-white dark:text-black" />
         </div>
+
         <div>
           <h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
             سفارش‌های من
@@ -114,6 +141,7 @@ export default async function OrdersPage() {
             <div className="rounded-full bg-gray-50 p-8 text-gray-200">
               <ShoppingBag className="h-16 w-16" />
             </div>
+
             <div className="text-center">
               <p className="text-xl font-bold text-gray-900">
                 هنوز سفارشی ثبت نکرده‌اید
@@ -122,6 +150,7 @@ export default async function OrdersPage() {
                 محصولات مورد علاقه خود را پیدا کنید و اولین خریدتان را انجام دهید
               </p>
             </div>
+
             <Button asChild className="h-12 rounded-xl px-10 text-base font-bold">
               <Link href="/">شروع گشت و گذار</Link>
             </Button>
@@ -129,13 +158,14 @@ export default async function OrdersPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {orders.map((order) => {
+          {orders.map((order: OrderView) => {
             const statusInfo = getStatusDetails(order.status);
             const StatusIcon = statusInfo.icon;
 
             const totalAmount = order.totalAmount || 0;
             const depositAmount = order.depositAmount || 0;
             const isPendingPayment = order.status === "PENDING_PAYMENT";
+
             const paidAmount = isPendingPayment
               ? 0
               : order.paymentType === "DEPOSIT"
@@ -210,6 +240,7 @@ export default async function OrdersPage() {
                               <h4 className="text-[16px] font-black leading-tight text-gray-900">
                                 {product?.name || "محصول نامشخص"}
                               </h4>
+
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-gray-500">
                                 <span className="flex items-center gap-1">
                                   رنگ: {color?.name || "نامشخص"}
@@ -271,14 +302,18 @@ export default async function OrdersPage() {
                             ? "مبلغ کل فاکتور:"
                             : "مبلغ پرداخت شده:"}
                         </span>
+
                         <span
                           className={`text-xl font-black ${
-                            isPendingPayment ? "text-gray-900" : "text-emerald-700"
+                            isPendingPayment
+                              ? "text-gray-900"
+                              : "text-emerald-700"
                           }`}
                         >
-                          {(isPendingPayment ? totalAmount : paidAmount).toLocaleString(
-                            "fa-IR",
-                          )}
+                          {(isPendingPayment
+                            ? totalAmount
+                            : paidAmount
+                          ).toLocaleString("fa-IR")}
                           <span className="mr-1 text-xs">تومان</span>
                         </span>
                       </div>

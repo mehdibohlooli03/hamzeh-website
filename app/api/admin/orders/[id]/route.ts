@@ -1,6 +1,4 @@
-import type { OrderStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
-
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -8,7 +6,7 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-const VALID_ORDER_STATUSES: OrderStatus[] = [
+const VALID_ORDER_STATUSES = [
   "PENDING_PAYMENT",
   "DEPOSIT_PAID",
   "PAID",
@@ -17,7 +15,9 @@ const VALID_ORDER_STATUSES: OrderStatus[] = [
   "DELIVERED",
   "CANCELLED",
   "EXPIRED",
-];
+] as const;
+
+type OrderStatus = (typeof VALID_ORDER_STATUSES)[number];
 
 export async function PUT(req: Request, context: RouteContext) {
   try {
@@ -64,7 +64,7 @@ export async function PUT(req: Request, context: RouteContext) {
 
     const order = await prisma.order.update({
       where: { id },
-      data: { status },
+      data: { status: status as any },
     });
 
     return NextResponse.json(order, { status: 200 });

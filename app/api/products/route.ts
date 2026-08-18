@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { Category } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 type SortParam = "cheapest" | "expensive";
+type Category = "TSHIRT" | "PANTS" | "SHIRT" | "JACKET";
 
 const validCategories = new Set<Category>([
-  Category.TSHIRT,
-  Category.PANTS,
-  Category.SHIRT,
-  Category.JACKET,
+  "TSHIRT",
+  "PANTS",
+  "SHIRT",
+  "JACKET",
 ]);
 
 export async function GET(request: Request) {

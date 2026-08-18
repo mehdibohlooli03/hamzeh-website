@@ -1,4 +1,3 @@
-// components/custom/settings-form.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,7 +5,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { User } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +36,12 @@ const formSchema = z.object({
 });
 
 interface SettingsFormProps {
-  user: Partial<User>;
+  user: {
+    name?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    email?: string | null;
+  };
 }
 
 export function SettingsForm({ user }: SettingsFormProps) {
@@ -63,7 +66,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
       } else {
         toast.error(result.error);
       }
-    } catch (error) {
+    } catch {
       toast.error("خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.");
     } finally {
       setLoading(false);

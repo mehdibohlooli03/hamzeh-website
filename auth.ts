@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@prisma/client";
+import { $Enums } from "@prisma/client";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -13,7 +13,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // تنظیم صریح کوکی‌ها برای کارکرد صحیح در Edge Middleware و HTTPS
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token",
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-authjs.session-token"
+          : "authjs.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
@@ -91,7 +94,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as Role;
+        session.user.role = token.role as $Enums.Role;
       }
 
       return session;

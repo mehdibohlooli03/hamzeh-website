@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -92,13 +91,10 @@ export async function PUT(req: Request, context: RouteContext) {
     });
 
     return NextResponse.json(updatedVariant);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`PUT /api/admin/variants/${variantId} failed:`, error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if ((error as { code?: string })?.code === "P2025") {
       return NextResponse.json({ error: "Variant not found" }, { status: 404 });
     }
 
@@ -161,20 +157,14 @@ export async function DELETE(_: Request, context: RouteContext) {
       softDeleted: false,
       message: "واریانت با موفقیت به طور کامل حذف شد.",
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`DELETE /api/admin/variants/${variantId} failed:`, error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if ((error as { code?: string })?.code === "P2025") {
       return NextResponse.json({ error: "Variant not found" }, { status: 404 });
     }
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2003"
-    ) {
+    if ((error as { code?: string })?.code === "P2003") {
       return NextResponse.json(
         {
           error: "این واریانت در سفارش‌ها استفاده شده و امکان حذف فیزیکی آن وجود ندارد.",

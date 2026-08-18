@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -42,7 +41,7 @@ export async function POST(req: Request, context: RouteContext) {
     if (!productId) {
       return NextResponse.json(
         { error: "Product id is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -55,7 +54,7 @@ export async function POST(req: Request, context: RouteContext) {
           error: "Invalid request body",
           issues: parsed.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -80,18 +79,23 @@ export async function POST(req: Request, context: RouteContext) {
     });
 
     return NextResponse.json(color, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof SyntaxError) {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400 },
+      );
     }
 
     if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
       error.code === "P2002"
     ) {
       return NextResponse.json(
         { error: "This color already exists for the product" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -99,7 +103,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     return NextResponse.json(
       { error: "Failed to create color" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

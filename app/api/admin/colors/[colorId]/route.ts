@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -80,13 +79,10 @@ export async function PUT(req: Request, context: RouteContext) {
     });
 
     return NextResponse.json(updatedColor);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`PUT /api/admin/colors/${colorId} failed:`, error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (error?.code === "P2025") {
       return NextResponse.json({ error: "Color not found" }, { status: 404 });
     }
 
@@ -127,7 +123,7 @@ export async function DELETE(_: Request, context: RouteContext) {
       return NextResponse.json({ error: "Color not found" }, { status: 404 });
     }
 
-    const variantIds = color.variants.map((variant) => variant.id);
+    const variantIds = color.variants.map((variant: { id: string }) => variant.id);
 
     let hasOrderDependencies = false;
 
@@ -144,19 +140,23 @@ export async function DELETE(_: Request, context: RouteContext) {
     }
 
     if (hasOrderDependencies) {
-      await prisma.$transaction(async (tx) => {
-        if (variantIds.length > 0) {
-          await tx.productVariant.updateMany({
+      const operations = [];
+      if (variantIds.length > 0) {
+        operations.push(
+          prisma.productVariant.updateMany({
             where: { id: { in: variantIds } },
             data: { isActive: false },
-          });
-        }
-
-        await tx.productColor.update({
+          })
+        );
+      }
+      operations.push(
+        prisma.productColor.update({
           where: { id: colorId },
           data: { isActive: false },
-        });
-      });
+        })
+      );
+
+      await prisma.$transaction(operations);
 
       return NextResponse.json({
         success: true,
@@ -165,37 +165,35 @@ export async function DELETE(_: Request, context: RouteContext) {
       });
     }
 
-    await prisma.$transaction(async (tx) => {
-      if (variantIds.length > 0) {
-        await tx.productVariant.deleteMany({
+    const deleteOperations = [];
+    if (variantIds.length > 0) {
+      deleteOperations.push(
+        prisma.productVariant.deleteMany({
           where: { colorId },
-        });
-      }
-
-      await tx.productColor.delete({
+        })
+      );
+    }
+    deleteOperations.push(
+      prisma.productColor.delete({
         where: { id: colorId },
-      });
-    });
+      })
+    );
+
+    await prisma.$transaction(deleteOperations);
 
     return NextResponse.json({
       success: true,
       softDeleted: false,
       message: "رنگ با موفقیت حذف شد.",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(`DELETE /api/admin/colors/${colorId} failed:`, error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (error?.code === "P2025") {
       return NextResponse.json({ error: "Color not found" }, { status: 404 });
     }
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2003"
-    ) {
+    if (error?.code === "P2003") {
       return NextResponse.json(
         {
           error:
